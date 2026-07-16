@@ -28,15 +28,30 @@ def run_scrape():
         import threading
         import asyncio
         from main import main as run_main
+        import sys
         
         def background_task(niche, country, max_ads, min_days, ai_filter):
+            with open("scrape.log", "w") as f:
+                f.write(f"=== Début du background task pour {niche} ===\n")
+                f.flush()
+            
+            # Rediriger stdout et stderr vers le fichier
+            original_stdout = sys.stdout
+            original_stderr = sys.stderr
             try:
-                # Run the async main function in this thread
-                asyncio.run(run_main(niche, country, int(max_ads), int(min_days), ai_filter))
+                with open("scrape.log", "a", buffering=1) as log_file:
+                    sys.stdout = log_file
+                    sys.stderr = log_file
+                    
+                    asyncio.run(run_main(niche, country, int(max_ads), int(min_days), ai_filter))
             except Exception as e:
-                print(f"Erreur dans le background task : {e}")
+                with open("scrape.log", "a") as log_file:
+                    log_file.write(f"\nErreur fatale dans le background task : {e}\n")
+            finally:
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
                 
-        # Lancement dans un Thread pour éviter l'erreur "Out Of Memory" (SIGKILL) liée au fork() de subprocess
+        # Lancement dans un Thread pour éviter l'erreur "Out Of Memory" (SIGKILL)
         thread = threading.Thread(target=background_task, args=(niche, country, max_ads, min_days, ai_filter))
         thread.daemon = True
         thread.start()
@@ -147,6 +162,16 @@ def generate_report():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/logs")
+def get_logs():
+    try:
+        if os.path.exists("scrape.log"):
+            with open("scrape.log", "r") as f:
+                return f.read()
+        return "Aucun log disponible pour le moment."
+    except:
+        return "Erreur lors de la lecture des logs."
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
