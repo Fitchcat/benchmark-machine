@@ -123,13 +123,14 @@ async def scrape_ads_from_search(niche: str, country_code: str = "FR", target_to
                 elif imgs_count > 2: # Une pour le profil, les autres pour le contenu
                     format_pub = "Carousel"
                 
-                # Extraire l'image de la vignette
+                # Extraire l'image de la vignette ou pub (on ignore les petits logos < 100px)
                 image_url = ""
                 try:
                     imgs = await card.locator("img").all()
                     for img in imgs:
                         src = await img.get_attribute("src")
-                        if src and "http" in src and "profile" not in src.lower():
+                        box = await img.bounding_box()
+                        if src and "http" in src and box and box['width'] > 80 and box['height'] > 80:
                             image_url = src
                             break
                 except Exception:
