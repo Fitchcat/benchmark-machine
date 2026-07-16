@@ -25,20 +25,19 @@ def run_scrape():
         # Run main.py in a subprocess with the given parameters
         print(f"Lancement du scraping pour la niche : {niche} (Pays: {country}, Max Ads: {max_ads}, Min Days: {min_days}, Filtre IA: {ai_filter})")
         # Note: We assume the venv python is used since we'll run app.py from venv
-        process = subprocess.Popen(
+        import sys
+        # Lancement asynchrone pour éviter le timeout HTTP de Render (100 secondes)
+        subprocess.Popen(
             ["python", "main.py", niche, country, max_ads, min_days, ai_filter],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
+            stdout=sys.stdout,
+            stderr=sys.stderr
         )
         
-        # We can either stream the output or just wait.
-        # For simplicity, we wait for the process to finish.
-        stdout, _ = process.communicate()
+        message_succes = "Le robot a bien démarré en arrière-plan ! 🚀\n\nÉtant donné que la recherche et l'analyse IA prennent environ 2 à 3 minutes, vous n'avez pas besoin d'attendre sur cette page.\n\n👉 Allez vérifier votre base Airtable pour voir les nouvelles publicités s'ajouter progressivement."
         
         return jsonify({
             "success": True, 
-            "logs": stdout
+            "logs": message_succes
         })
         
     except Exception as e:
