@@ -25,36 +25,25 @@ def run_scrape():
         # Run main.py in a subprocess with the given parameters
         print(f"Lancement du scraping pour la niche : {niche} (Pays: {country}, Max Ads: {max_ads}, Min Days: {min_days}, Filtre IA: {ai_filter})")
         # Note: We assume the venv python is used since we'll run app.py from venv
-        import threading
-        import asyncio
-        from main import main as run_main
-        import sys
+        import subprocess
         
-        def background_task(niche, country, max_ads, min_days, ai_filter):
-            with open("scrape.log", "w") as f:
-                f.write(f"=== Début du background task pour {niche} ===\n")
-                f.flush()
+        # On utilise subprocess au lieu d'un Thread car Playwright plante silencieusement 
+        # dans les threads secondaires sous Gunicorn (problème d'Event Loop asyncio).
+        # Pour éviter le crash OOM (Out Of Memory) de Render lié au fork() sous Linux, 
+        # on utilise close_fds=False, ce qui force Python à utiliser posix_spawn() au lieu de fork().
+        
+        with open("scrape.log", "w") as f:
+            f.write(f"=== Début du background task pour {niche} ===\n")
+            f.flush()
             
-            # Rediriger stdout et stderr vers le fichier
-            original_stdout = sys.stdout
-            original_stderr = sys.stderr
-            try:
-                with open("scrape.log", "a", buffering=1) as log_file:
-                    sys.stdout = log_file
-                    sys.stderr = log_file
-                    
-                    asyncio.run(run_main(niche, country, int(max_ads), int(min_days), ai_filter))
-            except Exception as e:
-                with open("scrape.log", "a") as log_file:
-                    log_file.write(f"\nErreur fatale dans le background task : {e}\n")
-            finally:
-                sys.stdout = original_stdout
-                sys.stderr = original_stderr
-                
-        # Lancement dans un Thread pour éviter l'erreur "Out Of Memory" (SIGKILL)
-        thread = threading.Thread(target=background_task, args=(niche, country, max_ads, min_days, ai_filter))
-        thread.daemon = True
-        thread.start()
+        log_file = open("scrape.log", "a", buffering=1)
+        
+        subprocess.Popen(
+            ["python", "-u", "main.py", niche, country, str(max_ads), str(min_days), ai_filter],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            close_fds=False
+        )
         
         message_succes = "Le robot a bien démarré en arrière-plan ! 🚀\n\nÉtant donné que la recherche et l'analyse IA prennent environ 2 à 3 minutes, vous n'avez pas besoin d'attendre sur cette page.\n\n👉 Allez vérifier votre base Airtable pour voir les nouvelles publicités s'ajouter progressivement."
         
