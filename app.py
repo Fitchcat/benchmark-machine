@@ -28,7 +28,7 @@ def run_scrape():
         import sys
         # Lancement asynchrone pour éviter le timeout HTTP de Render (100 secondes)
         subprocess.Popen(
-            ["python", "main.py", niche, country, max_ads, min_days, ai_filter],
+            ["python", "-u", "main.py", niche, country, max_ads, min_days, ai_filter],
             stdout=sys.stdout,
             stderr=sys.stderr
         )
