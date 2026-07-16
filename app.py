@@ -25,13 +25,21 @@ def run_scrape():
         # Run main.py in a subprocess with the given parameters
         print(f"Lancement du scraping pour la niche : {niche} (Pays: {country}, Max Ads: {max_ads}, Min Days: {min_days}, Filtre IA: {ai_filter})")
         # Note: We assume the venv python is used since we'll run app.py from venv
-        import sys
-        # Lancement asynchrone pour éviter le timeout HTTP de Render (100 secondes)
-        subprocess.Popen(
-            ["python", "-u", "main.py", niche, country, max_ads, min_days, ai_filter],
-            stdout=sys.stdout,
-            stderr=sys.stderr
-        )
+        import threading
+        import asyncio
+        from main import main as run_main
+        
+        def background_task(niche, country, max_ads, min_days, ai_filter):
+            try:
+                # Run the async main function in this thread
+                asyncio.run(run_main(niche, country, int(max_ads), int(min_days), ai_filter))
+            except Exception as e:
+                print(f"Erreur dans le background task : {e}")
+                
+        # Lancement dans un Thread pour éviter l'erreur "Out Of Memory" (SIGKILL) liée au fork() de subprocess
+        thread = threading.Thread(target=background_task, args=(niche, country, max_ads, min_days, ai_filter))
+        thread.daemon = True
+        thread.start()
         
         message_succes = "Le robot a bien démarré en arrière-plan ! 🚀\n\nÉtant donné que la recherche et l'analyse IA prennent environ 2 à 3 minutes, vous n'avez pas besoin d'attendre sur cette page.\n\n👉 Allez vérifier votre base Airtable pour voir les nouvelles publicités s'ajouter progressivement."
         
