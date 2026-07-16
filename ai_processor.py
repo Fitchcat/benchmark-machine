@@ -54,13 +54,15 @@ def generate_hook_and_angle(transcript: str, copy_text: str, ai_filter: str = ""
     filter_instruction = ""
     if ai_filter:
         filter_instruction = f"""
-3. "is_relevant" : booléen (true/false). Vérifie STRICTEMENT si cette publicité respecte le critère suivant : "{ai_filter}". Si elle ne le respecte pas ou si c'est ambigu, mets false.
-4. "rejection_reason" : Si is_relevant est false, explique brièvement pourquoi. Sinon, laisse vide "".
+3. "relevance_analysis": Réfléchis étape par étape en 1 phrase pour déterminer si la publicité correspond EXACTEMENT aux critères de filtrage. Critères : "{ai_filter}"
+4. "is_relevant" : booléen (true/false). Basé sur ton analyse, mets true UNIQUEMENT si ça correspond parfaitement. Si ça correspond à un critère d'exclusion ou au moindre doute, mets false.
+5. "rejection_reason" : Si is_relevant est false, explique brièvement pourquoi. Sinon, laisse vide "".
 """
     else:
         filter_instruction = """
-3. "is_relevant" : true
-4. "rejection_reason" : ""
+3. "relevance_analysis": ""
+4. "is_relevant" : true
+5. "rejection_reason" : ""
 """
 
     prompt = f"""
@@ -75,7 +77,7 @@ TÂCHES STRICTES :
 2. "angle" : Rédige un résumé clair et concis (1 phrase maximum) sur l'angle d'approche de la publicité (ex: "Mise en avant d'une promotion limitée pour créer l'urgence", "Témoignage client pour rassurer"). Ne mets JAMAIS de date ici.
 {filter_instruction}
 
-Réponds UNIQUEMENT sous forme de JSON avec ces QUATRE clés (hook, angle, is_relevant, rejection_reason).
+Réponds UNIQUEMENT sous forme de JSON avec ces CINQ clés (hook, angle, relevance_analysis, is_relevant, rejection_reason).
     """
     
     try:
