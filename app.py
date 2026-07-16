@@ -25,25 +25,45 @@ def run_scrape():
         # Run main.py in a subprocess with the given parameters
         print(f"Lancement du scraping pour la niche : {niche} (Pays: {country}, Max Ads: {max_ads}, Min Days: {min_days}, Filtre IA: {ai_filter})")
         # Note: We assume the venv python is used since we'll run app.py from venv
+        import threading
         import subprocess
         
-        # On utilise subprocess au lieu d'un Thread car Playwright plante silencieusement 
-        # dans les threads secondaires sous Gunicorn (problème d'Event Loop asyncio).
-        # Pour éviter le crash OOM (Out Of Memory) de Render lié au fork() sous Linux, 
-        # on utilise close_fds=False, ce qui force Python à utiliser posix_spawn() au lieu de fork().
-        
-        with open("scrape.log", "w") as f:
-            f.write(f"=== Début du background task pour {niche} ===\n")
-            f.flush()
+        def background_task(niche, country, max_ads, min_days, ai_filter):
+            with open("scrape.log", "w") as f:
+                f.write(f"=== Début du background task pour {niche} ===\n")
+                f.flush()
+                
+            log_file = open("scrape.log", "a", buffering=1)
             
-        log_file = open("scrape.log", "a", buffering=1)
-        
-        subprocess.Popen(
-            ["python", "-u", "main.py", niche, country, str(max_ads), str(min_days), ai_filter],
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            close_fds=False
-        )
+            try:
+                process = subprocess.Popen(
+                    ["python", "-u", "main.py", niche, country, str(max_ads), str(min_days), ai_filter],
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    close_fds=False
+                )
+                
+                # Attendre la fin du processus
+                process.wait()
+                
+                if process.returncode != 0:
+                    with open("scrape.log", "a") as f:
+                        if process.returncode == -9:
+                            f.write(f"\n❌ ERREUR FATALE : Le processus a été tué par Render (Code -9 = SIGKILL). Le serveur manque de mémoire vive (RAM) pour lancer Chromium.\n")
+                        else:
+                            f.write(f"\n❌ ERREUR : Le robot s'est arrêté avec le code d'erreur {process.returncode}.\n")
+                else:
+                    with open("scrape.log", "a") as f:
+                        f.write(f"\n✅ Processus terminé avec succès.\n")
+            except Exception as e:
+                with open("scrape.log", "a") as f:
+                    f.write(f"\n❌ Erreur inattendue au lancement du processus : {e}\n")
+            finally:
+                log_file.close()
+
+        thread = threading.Thread(target=background_task, args=(niche, country, max_ads, min_days, ai_filter))
+        thread.daemon = True
+        thread.start()
         
         message_succes = "Le robot a bien démarré en arrière-plan ! 🚀\n\nÉtant donné que la recherche et l'analyse IA prennent environ 2 à 3 minutes, vous n'avez pas besoin d'attendre sur cette page.\n\n👉 Allez vérifier votre base Airtable pour voir les nouvelles publicités s'ajouter progressivement."
         

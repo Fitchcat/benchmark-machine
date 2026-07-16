@@ -42,8 +42,19 @@ async def scrape_ads_from_search(niche: str, country_code: str = "FR", target_to
     seen_ad_ids = set()
 
     async with async_playwright() as p:
-            # En environnement serveur (Docker/Render), il FAUT utiliser headless=True car il n'y a pas d'interface graphique
-        browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'])
+        # En environnement serveur (Docker/Render), il FAUT utiliser headless=True car il n'y a pas d'interface graphique
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                '--disable-gpu',
+                '--disable-software-rasterizer',
+                '--disable-extensions',
+                '--disable-background-networking',
+                '--js-flags=--max-old-space-size=256'
+            ]
+        )
         context = await browser.new_context(
             viewport={'width': 1920, 'height': 1080},
             user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
