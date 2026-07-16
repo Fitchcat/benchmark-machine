@@ -40,7 +40,7 @@ def run_scrape():
                     ["python", "-u", "main.py", niche, country, str(max_ads), str(min_days), ai_filter],
                     stdout=log_file,
                     stderr=subprocess.STDOUT,
-                    close_fds=False
+                    close_fds=True
                 )
                 
                 # Attendre la fin du processus
