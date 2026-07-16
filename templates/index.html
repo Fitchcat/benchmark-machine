@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Ads Scraper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1e1e2f, #11111c);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-radius: 1.5rem;
+        }
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="glass-panel w-full max-w-lg p-10 mx-4">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+            Airtable Ads Scraper
+        </h1>
+        <p class="text-gray-400 text-sm">Entrez la niche pour extraire les meilleures publicités (Actives > 30 jours).</p>
+    </div>
+
+    <form id="scrapeForm" class="space-y-6">
+        <div>
+            <label for="niche" class="block text-sm font-medium text-gray-300 mb-2">Mot-clé / Niche</label>
+            <input type="text" id="niche" name="niche" placeholder="Ex: yoga, pilates, crossfit..." required
+                   class="w-full px-4 py-3 bg-gray-900 bg-opacity-50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white placeholder-gray-500 outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label for="country" class="block text-sm font-medium text-gray-300 mb-2">Pays cible</label>
+                <select id="country" name="country" class="w-full px-4 py-3 bg-gray-900 bg-opacity-50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white outline-none">
+                    <option value="FR">🇫🇷 France</option>
+                    <option value="ALL">🌍 Tous les pays</option>
+                    <option value="US">🇺🇸 États-Unis</option>
+                    <option value="CA">🇨🇦 Canada</option>
+                    <option value="BE">🇧🇪 Belgique</option>
+                    <option value="CH">🇨🇭 Suisse</option>
+                </select>
+            </div>
+            <div>
+                <label for="maxAds" class="block text-sm font-medium text-gray-300 mb-2">Nb de pubs max</label>
+                <input type="number" id="maxAds" name="maxAds" value="15" min="1" max="100"
+                       class="w-full px-4 py-3 bg-gray-900 bg-opacity-50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white outline-none">
+            </div>
+        </div>
+        
+        <div>
+            <label for="minDays" class="block text-sm font-medium text-gray-300 mb-2">Filtre "Pubs Gagnantes" : Jours actifs minimum</label>
+            <input type="number" id="minDays" name="minDays" value="30" min="0" max="365"
+                   class="w-full px-4 py-3 bg-gray-900 bg-opacity-50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white outline-none">
+            <p class="text-xs text-gray-500 mt-1">Les publicités qui tournent depuis longtemps sont celles qui ont généré le plus d'impressions et de succès.</p>
+        </div>
+
+        <div>
+            <label for="aiFilter" class="block text-sm font-medium text-gray-300 mb-2">Critères de filtrage par l'IA (Optionnel)</label>
+            <textarea id="aiFilter" name="aiFilter" rows="2" placeholder="Ex: Je veux uniquement des publicités pour des studios physiques. Exclure formellement les applications et les cours en ligne."
+                      class="w-full px-4 py-3 bg-gray-900 bg-opacity-50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-white placeholder-gray-500 outline-none resize-none"></textarea>
+            <p class="text-xs text-gray-500 mt-1">Si renseigné, l'IA rejettera les publicités qui ne correspondent pas à ces critères avant de les envoyer sur Airtable.</p>
+        </div>
+
+        <button type="submit" id="submitBtn" 
+                class="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+            <span id="btnText">Scraper et envoyer à Airtable</span>
+            <div id="loadingSpinner" class="loader hidden"></div>
+        </button>
+    </form>
+
+    <div id="statusMessage" class="mt-6 text-sm text-center hidden">
+        <!-- Message content here -->
+    </div>
+
+    <hr class="my-8 border-gray-700">
+    
+    <div class="text-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-200">Générer un Transcript (Whisper)</h2>
+        <p class="text-xs text-gray-400 mt-1">Copiez-collez ici le numéro de la publicité (<strong>Ad ID</strong>) depuis la première colonne de votre Airtable :</p>
+    </div>
+    
+    <form id="processForm" class="space-y-4">
+        <div>
+            <input type="text" id="recordId" placeholder="Ex: 2321496791568573" required
+                   class="w-full px-4 py-3 bg-gray-900 bg-opacity-50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-white placeholder-gray-500 outline-none">
+        </div>
+        <button type="submit" id="processBtn" 
+                class="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-semibold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+            <span id="processBtnText">Traiter la vidéo sur Airtable</span>
+            <div id="processLoadingSpinner" class="loader hidden"></div>
+        </button>
+    </form>
+    <div id="processStatusMessage" class="mt-4 text-sm text-center hidden"></div>
+    
+    <hr class="my-8 border-gray-700">
+    
+    <div class="text-center mb-4">
+        <h2 class="text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500">Générer la Synthèse de Niche</h2>
+        <p class="text-xs text-gray-400 mt-1">Créez un rapport complet (Top Hooks, Angles, Script Vidéo) basé sur les meilleures pubs de cette niche actuellement sur votre Airtable.</p>
+    </div>
+    
+    <form id="reportForm" class="space-y-4">
+        <div>
+            <label for="reportNiche" class="block text-sm font-medium text-gray-300 mb-2">Niche ou Annonceur cible</label>
+            <input type="text" id="reportNiche" placeholder="Ex: studio de yoga, Yoze..." required
+                   class="w-full px-4 py-3 bg-gray-900 bg-opacity-50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-white placeholder-gray-500 outline-none">
+        </div>
+        <div>
+            <label for="reportLimit" class="block text-sm font-medium text-gray-300 mb-2">Analyser sur le Top X annonces</label>
+            <input type="number" id="reportLimit" value="50" min="5" max="200"
+                   class="w-full px-4 py-3 bg-gray-900 bg-opacity-50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-white outline-none">
+        </div>
+        <button type="submit" id="reportBtn" 
+                class="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-semibold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+            <span id="reportBtnText">Générer le Rapport (GPT-4o)</span>
+            <div id="reportLoadingSpinner" class="loader hidden"></div>
+        </button>
+    </form>
+    
+    <div id="reportStatusMessage" class="mt-4 text-sm text-center hidden"></div>
+</div>
+
+<!-- Modal pour afficher le rapport -->
+<div id="reportModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div class="p-6 border-b border-gray-800 flex justify-between items-center">
+            <h3 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500">Rapport de Synthèse</h3>
+            <button id="closeReportBtn" class="text-gray-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-8 overflow-y-auto prose prose-invert max-w-none text-left" id="reportContent">
+            <!-- Content will be injected here -->
+        </div>
+        <div class="p-6 border-t border-gray-800 text-right">
+            <button id="copyReportBtn" class="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors border border-gray-700">Copier le rapport</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('scrapeForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const statusMessage = document.getElementById('statusMessage');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const niche = document.getElementById('niche').value;
+
+        // UI Loading state
+        submitBtn.disabled = true;
+        btnText.textContent = "Extraction en cours (~2 min)...";
+        loadingSpinner.classList.remove('hidden');
+        statusMessage.classList.add('hidden');
+
+        try {
+            const country = document.getElementById('country').value;
+            const maxAds = document.getElementById('maxAds').value;
+            const minDays = document.getElementById('minDays').value;
+            const aiFilter = document.getElementById('aiFilter').value;
+            
+            const response = await fetch('/scrape', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ niche: niche, country: country, maxAds: maxAds, minDays: minDays, aiFilter: aiFilter })
+            });
+
+            const data = await response.json();
+
+            statusMessage.classList.remove('hidden');
+            if (response.ok) {
+                statusMessage.innerHTML = `<span class="text-green-400 font-medium">✅ Succès ! Les publicités ont été analysées.</span><br><br><span class="text-xs text-gray-400 block mt-2 whitespace-pre-wrap text-left bg-black bg-opacity-30 p-3 rounded-lg overflow-y-auto max-h-48">${data.logs}</span>`;
+            } else {
+                statusMessage.innerHTML = `<span class="text-red-400">❌ Erreur: ${data.error}</span>`;
+            }
+
+        } catch (error) {
+            statusMessage.classList.remove('hidden');
+            statusMessage.innerHTML = `<span class="text-red-400">❌ Erreur réseau ou timeout.</span>`;
+        } finally {
+            // Restore UI
+            submitBtn.disabled = false;
+            btnText.textContent = "Scraper et envoyer à Airtable";
+            loadingSpinner.classList.add('hidden');
+        }
+    });
+
+    const processForm = document.getElementById('processForm');
+    const processBtn = document.getElementById('processBtn');
+    const processBtnText = document.getElementById('processBtnText');
+    const processLoadingSpinner = document.getElementById('processLoadingSpinner');
+    const processStatusMessage = document.getElementById('processStatusMessage');
+
+    processForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const recordId = document.getElementById('recordId').value;
+
+        processBtn.disabled = true;
+        processBtnText.textContent = "Téléchargement & Whisper...";
+        processLoadingSpinner.classList.remove('hidden');
+        processStatusMessage.classList.add('hidden');
+
+        try {
+            const response = await fetch(`/process_video?ad_id=${recordId}`);
+            const text = await response.text();
+
+            processStatusMessage.classList.remove('hidden');
+            if (response.ok) {
+                processStatusMessage.innerHTML = `<span class="text-green-400 font-medium">✅ Succès ! Vidéo traitée sur Airtable.</span>`;
+            } else {
+                processStatusMessage.innerHTML = `<span class="text-red-400">❌ Erreur: ${text}</span>`;
+            }
+        } catch (error) {
+            processStatusMessage.classList.remove('hidden');
+            processStatusMessage.innerHTML = `<span class="text-red-400">❌ Erreur de connexion.</span>`;
+        } finally {
+            processBtn.disabled = false;
+            processBtnText.textContent = "Traiter la vidéo sur Airtable";
+            processLoadingSpinner.classList.add('hidden');
+        }
+    });
+
+    const reportForm = document.getElementById('reportForm');
+    const reportBtn = document.getElementById('reportBtn');
+    const reportBtnText = document.getElementById('reportBtnText');
+    const reportLoadingSpinner = document.getElementById('reportLoadingSpinner');
+    const reportStatusMessage = document.getElementById('reportStatusMessage');
+    const reportModal = document.getElementById('reportModal');
+    const closeReportBtn = document.getElementById('closeReportBtn');
+    const reportContent = document.getElementById('reportContent');
+    const copyReportBtn = document.getElementById('copyReportBtn');
+
+    reportForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const niche = document.getElementById('reportNiche').value;
+        const limit = document.getElementById('reportLimit').value;
+
+        reportBtn.disabled = true;
+        reportBtnText.textContent = "Analyse IA en cours...";
+        reportLoadingSpinner.classList.remove('hidden');
+        reportStatusMessage.classList.add('hidden');
+
+        try {
+            const response = await fetch('/generate_report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ niche: niche, limit: limit })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                reportContent.innerHTML = data.report_html;
+                reportModal.classList.remove('hidden');
+            } else {
+                reportStatusMessage.classList.remove('hidden');
+                reportStatusMessage.innerHTML = `<span class="text-red-400">❌ Erreur: ${data.error}</span>`;
+            }
+        } catch (error) {
+            reportStatusMessage.classList.remove('hidden');
+            reportStatusMessage.innerHTML = `<span class="text-red-400">❌ Erreur réseau ou timeout.</span>`;
+        } finally {
+            reportBtn.disabled = false;
+            reportBtnText.textContent = "Générer le Rapport (GPT-4o)";
+            reportLoadingSpinner.classList.add('hidden');
+        }
+    });
+
+    closeReportBtn.addEventListener('click', () => {
+        reportModal.classList.add('hidden');
+    });
+
+    copyReportBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(reportContent.innerText).then(() => {
+            const originalText = copyReportBtn.textContent;
+            copyReportBtn.textContent = "Copié !";
+            setTimeout(() => { copyReportBtn.textContent = originalText; }, 2000);
+        });
+    });
+</script>
+
+</body>
+</html>

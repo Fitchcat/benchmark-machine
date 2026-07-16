@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Tests and debug
+test*.py
+debug_html.html
+debug_screenshot.png
+get_bases.py
+bases_debug.txt
+update_logic.py
+*.csv
+*.mp4
+*.webm
+
+# OS files
+.DS_Store
